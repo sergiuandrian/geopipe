@@ -17,3 +17,4 @@ frontend/capture-*.mjs
 .env
 .env.*
 !.env.example
+.vercel/

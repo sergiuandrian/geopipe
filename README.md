@@ -78,12 +78,33 @@ GEOPIPE_API_URL=http://127.0.0.1:8000 GEOPIPE_API_KEY=gp_... \
 
 Tools: `list_layers`, `list_spatial_backends`, `query_features`, `layer_stats`, `buffer`, `intersect`, `crs_transform`
 
+## Deploy (Vercel + GitHub)
+
+Frontend (Vite) and API (FastAPI) deploy together as [Vercel Services](https://vercel.com/docs/services/experimental) — one domain, `/v1/*` → backend, everything else → UI.
+
+**Connect the GitHub repo (recommended):**
+
+1. Log in at [vercel.com/login](https://vercel.com/login) (normal browser — not an old CLI device link)
+2. Install [Vercel for GitHub](https://github.com/apps/vercel) on `sergiuandrian/geopipe`
+3. Import from [vercel.com/new](https://vercel.com/new) → GitHub → `geopipe` (root = `.`, uses `vercel.json`)
+4. Full checklist + error fixes: [`docs/vercel-github-setup.md`](docs/vercel-github-setup.md)
+
+If you saw `Invalid Compact JWS`, that was an expired agent device-login code — use the dashboard login/import steps above instead.
+
+**Optional GitHub Actions** (preview + production workflows) need secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` — see the same doc.
+
+```bash
+# Local one-shot after vercel login
+./scripts/deploy-vercel.sh
+```
+
 ## Roadmap (next)
 
 1. ~~Stripe billing + plan/usage limits~~
 2. ~~Usage dashboard~~
 3. ~~Real auth (beyond bootstrap API keys)~~
-4. Multi-tenant PostGIS
+4. ~~Deploy to Vercel + browser UI verification~~
+5. Multi-tenant PostGIS
 
 ## Auth & billing
 
