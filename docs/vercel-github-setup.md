@@ -19,10 +19,11 @@ Two supported paths. Prefer **A** (dashboard import). Do **not** use expired CLI
    - `SPATIAL_BACKEND` (default `geopackage`)
 7. Push to `main` → production. Open a PR → preview deployment.
 
-### Troubleshooting access errors
+### Troubleshooting access / deploy errors
 
 | Symptom | Cause / fix |
 |---|---|
+| `Deployment failed` → docs link for project configuration | Invalid `vercel.json`. Services must not set top-level `memory` / `maxDuration` (Fluid compute). Use `functions` → `maxDuration` on the backend service instead. |
 | `TypeError: …toSorted is not a function` on `vercel.com` | **Vercel dashboard bug/compat** — their UI uses `Array.prototype.toSorted` (needs Chrome/Edge 110+, Firefox 115+, Safari 16+). Update the browser, try another browser/profile, or disable broken extensions. This is **not** a GeoPipe error. |
 | `Invalid Compact JWS` | Expired or broken CLI device-login code. Ignore agent device URLs; log in at [vercel.com/login](https://vercel.com/login) instead, then Import. |
 | Device authorize page asks to log in again, then errors | Start over from the dashboard Import flow (path A). Don’t reuse old `user_code` links. |
