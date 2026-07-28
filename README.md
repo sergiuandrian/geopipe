@@ -84,9 +84,12 @@ Frontend (Vite) and API (FastAPI) deploy together as [Vercel Services](https://v
 
 **Connect the GitHub repo (recommended):**
 
-1. Install [Vercel for GitHub](https://github.com/apps/vercel) on `sergiuandrian/geopipe`
-2. [Import GeoPipe on Vercel](https://vercel.com/new/import?s=https://github.com/sergiuandrian/geopipe) (root = `.`, uses `vercel.json`)
-3. Full checklist: [`docs/vercel-github-setup.md`](docs/vercel-github-setup.md)
+1. Log in at [vercel.com/login](https://vercel.com/login) (normal browser — not an old CLI device link)
+2. Install [Vercel for GitHub](https://github.com/apps/vercel) on `sergiuandrian/geopipe`
+3. Import from [vercel.com/new](https://vercel.com/new) → GitHub → `geopipe` (root = `.`, uses `vercel.json`)
+4. Full checklist + error fixes: [`docs/vercel-github-setup.md`](docs/vercel-github-setup.md)
+
+If you saw `Invalid Compact JWS`, that was an expired agent device-login code — use the dashboard login/import steps above instead.
 
 **Optional GitHub Actions** (preview + production workflows) need secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` — see the same doc.
 
