@@ -78,12 +78,38 @@ GEOPIPE_API_URL=http://127.0.0.1:8000 GEOPIPE_API_KEY=gp_... \
 
 Tools: `list_layers`, `list_spatial_backends`, `query_features`, `layer_stats`, `buffer`, `intersect`, `crs_transform`
 
+## Deploy (Vercel)
+
+Frontend (Vite) and API (FastAPI) deploy together as [Vercel Services](https://vercel.com/docs/services/experimental) — one domain, `/v1/*` → backend, everything else → UI.
+
+```bash
+# One-time: link the repo (creates .vercel/)
+npx vercel@41 link
+
+# Production deploy
+npx vercel@41 deploy --prod --yes
+```
+
+Or use the GitHub Action (`.github/workflows/deploy-vercel.yml`) after adding secrets:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+Set production env in the Vercel project as needed (`JWT_SECRET`, `AUTH_REQUIRED`, `STRIPE_*`, `SPATIAL_BACKEND`, …). On Vercel the API stores SQLite/GeoPackage under `/tmp` (ephemeral per instance).
+
+```bash
+# Optional: Deploy button
+# https://vercel.com/new/clone?repository-url=https://github.com/sergiuandrian/geopipe
+```
+
 ## Roadmap (next)
 
 1. ~~Stripe billing + plan/usage limits~~
 2. ~~Usage dashboard~~
 3. ~~Real auth (beyond bootstrap API keys)~~
-4. Multi-tenant PostGIS
+4. ~~Deploy to Vercel + browser UI verification~~
+5. Multi-tenant PostGIS
 
 ## Auth & billing
 
