@@ -20,6 +20,7 @@ test.describe('GeoPipe workspace', () => {
     await expect(page.getByRole('button', { name: 'Layers' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'API' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
   })
 
   test('publishes a sample layer and frames it on the map', async ({ page }) => {
@@ -42,5 +43,14 @@ test.describe('GeoPipe workspace', () => {
     await expect(page.getByTestId('api-panel')).toBeVisible()
     await expect(page.getByTestId('backend-list')).toContainText('geopackage')
     await expect(page.getByTestId('backend-list')).toContainText('duckdb')
+  })
+
+  test('shows account auth form and usage dashboard', async ({ page }) => {
+    await page.getByRole('button', { name: 'Account' }).click()
+    await expect(page.getByTestId('account-panel')).toBeVisible()
+    await expect(page.getByTestId('auth-form')).toBeVisible()
+    await expect(page.getByTestId('usage-dashboard')).toBeVisible()
+    await expect(page.getByTestId('plan-list')).toContainText('Free')
+    await expect(page.getByTestId('plan-list')).toContainText('Pro')
   })
 })

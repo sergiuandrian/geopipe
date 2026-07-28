@@ -80,7 +80,28 @@ Tools: `list_layers`, `list_spatial_backends`, `query_features`, `layer_stats`, 
 
 ## Roadmap (next)
 
-1. Stripe billing + plan/usage limits
-2. Usage dashboard
-3. Real auth (beyond bootstrap API keys)
+1. ~~Stripe billing + plan/usage limits~~
+2. ~~Usage dashboard~~
+3. ~~Real auth (beyond bootstrap API keys)~~
 4. Multi-tenant PostGIS
+
+## Auth & billing
+
+Email/password accounts issue a JWT (`Authorization: Bearer …`). API keys remain the machine auth for Feature/MVT/MCP.
+
+```bash
+# Sign up
+curl -X POST http://127.0.0.1:8000/v1/auth/signup \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"password123","name":"You"}'
+
+# Usage dashboard
+curl http://127.0.0.1:8000/v1/billing/usage -H "Authorization: Bearer $TOKEN"
+
+# Stripe Checkout (requires STRIPE_* env) or local dev upgrade
+curl -X POST http://127.0.0.1:8000/v1/billing/checkout -H "Authorization: Bearer $TOKEN"
+curl -X POST http://127.0.0.1:8000/v1/billing/dev-upgrade -H "Authorization: Bearer $TOKEN"
+```
+
+Stripe webhook: `POST /v1/billing/webhook` (set `STRIPE_WEBHOOK_SECRET`).
+Set `AUTH_REQUIRED=true` to disable anonymous bootstrap access.

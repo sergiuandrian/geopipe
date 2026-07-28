@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from app.core.database import SessionLocal
 from app.mcp.tools import TOOL_DEFINITIONS, execute_tool
+from app.services import billing as billing_service
 from app.services import ingest
 
 router = APIRouter(prefix="/mcp", tags=["mcp-sse"])
@@ -59,6 +60,7 @@ async def mcp_messages(
     """JSON-RPC-ish MCP message endpoint for tool calls over HTTP+SSE setups."""
     async with SessionLocal() as db:
         project, api_key = await ingest.authenticate_api_key(db, x_api_key)
+        await billing_service.enforce_plan_limit(db, project)
         method = body.get("method")
         params = body.get("params") or {}
         req_id = body.get("id")

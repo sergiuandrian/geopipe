@@ -7,6 +7,7 @@ const TABS = [
   { id: 'layers', label: 'Layers' },
   { id: 'connect', label: 'Connect' },
   { id: 'api', label: 'API' },
+  { id: 'account', label: 'Account' },
 ]
 
 export default function App() {
@@ -15,8 +16,13 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [geojson, setGeojson] = useState(null)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('geopipe_api_key') || '')
+  const [token, setToken] = useState(() => localStorage.getItem('geopipe_token') || '')
+  const [user, setUser] = useState(null)
   const [backend, setBackend] = useState(() => localStorage.getItem('geopipe_backend') || 'geopackage')
   const [connectors, setConnectors] = useState(null)
+  const [usageDash, setUsageDash] = useState(null)
+  const [authMode, setAuthMode] = useState('login')
+  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' })
   const [tab, setTab] = useState('layers')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -32,11 +38,13 @@ export default function App() {
 
   const backends = bootstrap?.backends || []
   const empty = !selected
+  const authHeaders = useMemo(() => ({ apiKey: apiKey || undefined, token: token || undefined }), [apiKey, token])
 
   const refresh = useCallback(async () => {
-    const data = await api('/v1/bootstrap')
+    const data = await api('/v1/bootstrap', authHeaders)
     setBootstrap(data)
     setLayers(data.layers || [])
+    setUser(data.user || null)
     if (data.default_backend && !localStorage.getItem('geopipe_backend')) {
       setBackend(data.default_backend)
     }
@@ -47,11 +55,26 @@ export default function App() {
     if (!selectedId && data.layers?.length) {
       setSelectedId(data.layers[0].id)
     }
-  }, [selectedId])
+  }, [authHeaders, selectedId])
+
+  const refreshUsage = useCallback(async () => {
+    try {
+      const data = await api('/v1/billing/usage', authHeaders)
+      setUsageDash(data)
+    } catch {
+      setUsageDash(null)
+    }
+  }, [authHeaders])
 
   useEffect(() => {
     refresh().catch((err) => setError(err.message))
   }, [refresh])
+
+  useEffect(() => {
+    if (tab === 'account') {
+      refreshUsage().catch(() => {})
+    }
+  }, [tab, refreshUsage])
 
   useEffect(() => {
     if (!selectedId) {
@@ -59,17 +82,17 @@ export default function App() {
       return
     }
     setGeojson(null)
-    api(`/v1/layers/${selectedId}/geojson?limit=2000`, { apiKey: apiKey || undefined })
+    api(`/v1/layers/${selectedId}/geojson?limit=2000`, authHeaders)
       .then(setGeojson)
       .catch((err) => setError(err.message))
-  }, [selectedId, apiKey])
+  }, [selectedId, authHeaders])
 
   useEffect(() => {
-    if (!apiKey) return
-    api('/v1/agents/connectors', { apiKey })
+    if (!apiKey && !token) return
+    api('/v1/agents/connectors', authHeaders)
       .then(setConnectors)
       .catch(() => setConnectors(null))
-  }, [apiKey])
+  }, [apiKey, token, authHeaders])
 
   async function flashCopy(label, value) {
     const ok = await copyText(value)
@@ -91,7 +114,7 @@ export default function App() {
       const layer = await api('/v1/layers', {
         method: 'POST',
         body,
-        apiKey: apiKey || undefined,
+        ...authHeaders,
       })
       setStatus(`${layer.name} live on ${layer.backend}`)
       setTab('layers')
@@ -111,12 +134,93 @@ export default function App() {
     try {
       const data = await api('/v1/api-keys/rotate', {
         method: 'POST',
-        apiKey: apiKey || undefined,
+        ...authHeaders,
       })
       setApiKey(data.api_key)
       localStorage.setItem('geopipe_api_key', data.api_key)
       setStatus('New API key created')
       await refresh()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitAuth(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const path = authMode === 'signup' ? '/v1/auth/signup' : '/v1/auth/login'
+      const body = {
+        email: authForm.email,
+        password: authForm.password,
+        ...(authMode === 'signup' ? { name: authForm.name || undefined } : {}),
+      }
+      const data = await api(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      setToken(data.access_token)
+      localStorage.setItem('geopipe_token', data.access_token)
+      setUser(data.user)
+      if (data.api_key) {
+        setApiKey(data.api_key)
+        localStorage.setItem('geopipe_api_key', data.api_key)
+      }
+      setStatus(authMode === 'signup' ? 'Account created' : `Signed in as ${data.user.email}`)
+      setTab('account')
+      await refresh()
+      await refreshUsage()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function signOut() {
+    setToken('')
+    setUser(null)
+    localStorage.removeItem('geopipe_token')
+    setStatus('Signed out')
+    refresh().catch((err) => setError(err.message))
+  }
+
+  async function upgradePlan() {
+    setBusy(true)
+    setError('')
+    try {
+      if (bootstrap?.stripe_configured) {
+        const data = await api('/v1/billing/checkout', {
+          method: 'POST',
+          token,
+        })
+        window.location.href = data.checkout_url
+        return
+      }
+      const data = await api('/v1/billing/dev-upgrade', {
+        method: 'POST',
+        token,
+      })
+      setStatus(`Upgraded to ${data.project.plan}`)
+      await refresh()
+      await refreshUsage()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function openPortal() {
+    setBusy(true)
+    setError('')
+    try {
+      const data = await api('/v1/billing/portal', { method: 'POST', token })
+      window.location.href = data.portal_url
     } catch (err) {
       setError(err.message)
     } finally {
@@ -140,6 +244,8 @@ export default function App() {
   const stdioSnippet = connectors
     ? JSON.stringify(connectors.mcp_stdio.mcpServers, null, 2)
     : ''
+  const usage = usageDash?.usage || bootstrap?.usage
+  const plans = usageDash?.plans || bootstrap?.plans || []
 
   return (
     <div className={`shell ${dockOpen ? 'dock-open' : 'dock-closed'}`}>
@@ -163,12 +269,13 @@ export default function App() {
         </header>
 
         <div className="usage-overlay" aria-live="polite">
-          {bootstrap && (
+          {usage && (
             <span className="meta-chip" data-testid="usage-chip">
-              {bootstrap.usage.requests}/{bootstrap.usage.limit}
+              {usage.requests}/{usage.limit}
             </span>
           )}
-          <span className="meta-chip tone">{bootstrap?.project.plan || 'free'}</span>
+          <span className="meta-chip tone">{bootstrap?.project?.plan || 'free'}</span>
+          {user && <span className="meta-chip">{user.email}</span>}
         </div>
 
         {empty && (
@@ -362,6 +469,128 @@ export default function App() {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {tab === 'account' && (
+            <div className="panel-block fade-in" data-testid="account-panel">
+              <h2>Account</h2>
+              {user ? (
+                <div className="account-signed-in">
+                  <p className="help">
+                    Signed in as <strong>{user.email}</strong>
+                  </p>
+                  <button type="button" className="secondary" onClick={signOut} disabled={busy}>
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <form className="auth-form" onSubmit={submitAuth} data-testid="auth-form">
+                  <div className="auth-toggle" role="group" aria-label="Auth mode">
+                    <button
+                      type="button"
+                      className={authMode === 'login' ? 'active' : ''}
+                      onClick={() => setAuthMode('login')}
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      type="button"
+                      className={authMode === 'signup' ? 'active' : ''}
+                      onClick={() => setAuthMode('signup')}
+                    >
+                      Create account
+                    </button>
+                  </div>
+                  {authMode === 'signup' && (
+                    <label className="auth-field">
+                      <span>Name</span>
+                      <input
+                        value={authForm.name}
+                        onChange={(event) => setAuthForm((prev) => ({ ...prev, name: event.target.value }))}
+                        autoComplete="name"
+                      />
+                    </label>
+                  )}
+                  <label className="auth-field">
+                    <span>Email</span>
+                    <input
+                      type="email"
+                      required
+                      value={authForm.email}
+                      onChange={(event) => setAuthForm((prev) => ({ ...prev, email: event.target.value }))}
+                      autoComplete="email"
+                    />
+                  </label>
+                  <label className="auth-field">
+                    <span>Password</span>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={authForm.password}
+                      onChange={(event) => setAuthForm((prev) => ({ ...prev, password: event.target.value }))}
+                      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                    />
+                  </label>
+                  <button type="submit" disabled={busy}>
+                    {authMode === 'signup' ? 'Create account' : 'Sign in'}
+                  </button>
+                </form>
+              )}
+
+              <h2>Usage</h2>
+              {usage ? (
+                <div className="usage-card" data-testid="usage-dashboard">
+                  <div className="usage-bar" aria-hidden="true">
+                    <span style={{ width: `${Math.min(usage.percent || 0, 100)}%` }} />
+                  </div>
+                  <p>
+                    <strong>
+                      {usage.requests}/{usage.limit}
+                    </strong>{' '}
+                    requests on <span className="tone">{usage.plan}</span>
+                  </p>
+                  {!!usage.by_endpoint?.length && (
+                    <ul className="usage-breakdown">
+                      {usage.by_endpoint.slice(0, 6).map((row) => (
+                        <li key={row.endpoint}>
+                          <span>{row.endpoint}</span>
+                          <strong>{row.units}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <p className="empty">Usage loads after bootstrap.</p>
+              )}
+
+              <h2>Billing</h2>
+              <ul className="plan-list" data-testid="plan-list">
+                {plans.map((plan) => (
+                  <li key={plan.id} className={plan.id === bootstrap?.project?.plan ? 'current' : ''}>
+                    <div>
+                      <strong>{plan.name}</strong>
+                      <span>
+                        ${plan.price_monthly_usd}/mo · {plan.request_limit.toLocaleString()} requests
+                      </span>
+                    </div>
+                    {plan.id === bootstrap?.project?.plan && <em>Current</em>}
+                  </li>
+                ))}
+              </ul>
+              {user && bootstrap?.project?.plan !== 'pro' && (
+                <button type="button" onClick={upgradePlan} disabled={busy || !token} data-testid="upgrade-button">
+                  {bootstrap?.stripe_configured ? 'Upgrade with Stripe' : 'Upgrade to Pro (dev)'}
+                </button>
+              )}
+              {user && bootstrap?.stripe_configured && bootstrap?.project?.has_subscription && (
+                <button type="button" className="secondary" onClick={openPortal} disabled={busy}>
+                  Manage billing
+                </button>
+              )}
+              {!user && <p className="help">Sign in to upgrade and manage billing.</p>}
             </div>
           )}
         </div>
