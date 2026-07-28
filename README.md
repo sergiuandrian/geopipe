@@ -78,29 +78,21 @@ GEOPIPE_API_URL=http://127.0.0.1:8000 GEOPIPE_API_KEY=gp_... \
 
 Tools: `list_layers`, `list_spatial_backends`, `query_features`, `layer_stats`, `buffer`, `intersect`, `crs_transform`
 
-## Deploy (Vercel)
+## Deploy (Vercel + GitHub)
 
 Frontend (Vite) and API (FastAPI) deploy together as [Vercel Services](https://vercel.com/docs/services/experimental) — one domain, `/v1/*` → backend, everything else → UI.
 
-```bash
-# One-time: link the repo (creates .vercel/)
-npx vercel@41 link
+**Connect the GitHub repo (recommended):**
 
-# Production deploy
-npx vercel@41 deploy --prod --yes
-```
+1. Install [Vercel for GitHub](https://github.com/apps/vercel) on `sergiuandrian/geopipe`
+2. [Import GeoPipe on Vercel](https://vercel.com/new/import?s=https://github.com/sergiuandrian/geopipe) (root = `.`, uses `vercel.json`)
+3. Full checklist: [`docs/vercel-github-setup.md`](docs/vercel-github-setup.md)
 
-Or use the GitHub Action (`.github/workflows/deploy-vercel.yml`) after adding secrets:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-Set production env in the Vercel project as needed (`JWT_SECRET`, `AUTH_REQUIRED`, `STRIPE_*`, `SPATIAL_BACKEND`, …). On Vercel the API stores SQLite/GeoPackage under `/tmp` (ephemeral per instance).
+**Optional GitHub Actions** (preview + production workflows) need secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` — see the same doc.
 
 ```bash
-# Optional: Deploy button
-# https://vercel.com/new/clone?repository-url=https://github.com/sergiuandrian/geopipe
+# Local one-shot after vercel login
+./scripts/deploy-vercel.sh
 ```
 
 ## Roadmap (next)
