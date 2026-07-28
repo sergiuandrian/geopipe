@@ -9,6 +9,20 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
+class User(Base):
+    """Authenticated account that owns one or more projects."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: secrets.token_hex(8))
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str] = mapped_column(String(120), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    projects: Mapped[list[Project]] = relationship(back_populates="owner")
+
+
 class Project(Base):
     """A tenant workspace owning layers and API keys."""
 
@@ -17,8 +31,13 @@ class Project(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: secrets.token_hex(8))
     name: Mapped[str] = mapped_column(String(120), default="Default Project")
     plan: Mapped[str] = mapped_column(String(32), default="free")
+    owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    plan_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    owner: Mapped[User | None] = relationship(back_populates="projects")
     layers: Mapped[list[Layer]] = relationship(back_populates="project", cascade="all, delete-orphan")
     api_keys: Mapped[list[ApiKey]] = relationship(back_populates="project", cascade="all, delete-orphan")
 

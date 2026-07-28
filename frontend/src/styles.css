@@ -657,3 +657,153 @@ input {
     display: none;
   }
 }
+
+.auth-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.auth-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: rgba(16, 32, 51, 0.05);
+}
+
+.auth-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+}
+
+.auth-toggle button.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(16, 32, 51, 0.08);
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.auth-field span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.auth-field input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+}
+
+.account-signed-in {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 1.1rem;
+}
+
+.usage-card {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+}
+
+.usage-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(16, 32, 51, 0.08);
+  overflow: hidden;
+}
+
+.usage-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  transition: width 400ms ease;
+}
+
+.usage-breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.usage-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+}
+
+.plan-list {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.plan-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.plan-list li.current {
+  border-color: rgba(11, 110, 103, 0.35);
+  background: var(--accent-soft);
+}
+
+.plan-list li div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.plan-list li span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.plan-list em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--accent-strong);
+  font-weight: 650;
+}
+
+.panel-block > button + button.secondary,
+.panel-block > button.secondary + button {
+  margin-top: 0.55rem;
+}
+
+.tone {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.78em;
+  font-weight: 700;
+  color: var(--accent-strong);
+}

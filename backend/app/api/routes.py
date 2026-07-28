@@ -4,27 +4,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_project, require_project_soft
 from app.core.database import get_db
 from app.core.config import get_settings
-from app.models import ApiKey, Layer, Project, UsageEvent
+from app.models import ApiKey, Layer, Project
+from app.services import billing as billing_service
 from app.services import ingest, spatial
 
 router = APIRouter()
-
-
-async def require_project(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
-) -> tuple[Project, ApiKey | None]:
-    """Resolve project from API key, or fall back to default project for local MVP UI."""
-    if x_api_key:
-        project, api_key = await ingest.authenticate_api_key(db, x_api_key)
-        return project, api_key
-    project = await ingest.ensure_default_project(db)
-    return project, None
 
 
 @router.get("/health")
@@ -34,24 +24,55 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/bootstrap")
-async def bootstrap(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
-    """Ensure default project exists and return dashboard bootstrap payload."""
+async def bootstrap(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    authorization: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> dict:
+    """Return dashboard bootstrap for JWT user, API key project, or local default."""
     from app.storage.registry import list_backends
+    from app.services import auth as auth_service
+    from app.models import User
 
-    project = await ingest.ensure_default_project(db)
+    project: Project | None = None
+    bootstrap_key = None
+    user_payload = None
+
+    if x_api_key:
+        project, _ = await ingest.authenticate_api_key(db, x_api_key)
+    elif authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        payload = auth_service.decode_access_token(token)
+        user = await db.get(User, payload["sub"])
+        if user:
+            project = await auth_service.get_user_project(db, user)
+            user_payload = auth_service.user_to_dict(user)
+    if project is None and not get_settings().auth_required:
+        project = await ingest.ensure_default_project(db)
+        bootstrap_key = getattr(project, "_bootstrap_api_key", None)
+    if project is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     api_key = await ingest.get_project_api_key(db, project.id)
-    layers_result = await db.execute(select(Layer).where(Layer.project_id == project.id).order_by(Layer.created_at.desc()))
-    layers = layers_result.scalars().all()
-    usage_result = await db.execute(
-        select(func.coalesce(func.sum(UsageEvent.units), 0)).where(UsageEvent.project_id == project.id)
+    layers_result = await db.execute(
+        select(Layer).where(Layer.project_id == project.id).order_by(Layer.created_at.desc())
     )
-    used = int(usage_result.scalar_one())
-    bootstrap_key = getattr(project, "_bootstrap_api_key", None)
+    layers = layers_result.scalars().all()
+    usage = await billing_service.usage_summary(db, project)
     return {
-        "project": {"id": project.id, "name": project.name, "plan": project.plan},
+        "project": {
+            "id": project.id,
+            "name": project.name,
+            "plan": project.plan,
+            "has_subscription": bool(project.stripe_subscription_id),
+        },
+        "user": user_payload,
         "api_key_prefix": api_key.key_prefix if api_key else None,
         "api_key": bootstrap_key,
-        "usage": {"requests": used, "limit": 10_000},
+        "usage": usage,
+        "plans": billing_service.plan_catalog(),
+        "stripe_configured": billing_service.stripe_configured(),
+        "auth_required": get_settings().auth_required,
         "backends": list_backends(),
         "default_backend": get_settings().spatial_backend,
         "layers": [spatial.layer_to_dict(layer) for layer in layers],
@@ -61,7 +82,7 @@ async def bootstrap(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
 @router.post("/api-keys/rotate")
 async def rotate_api_key(
     db: Annotated[AsyncSession, Depends(get_db)],
-    project_auth: Annotated[tuple[Project, ApiKey | None], Depends(require_project)],
+    project_auth: Annotated[tuple[Project, ApiKey | None], Depends(require_project_soft)],
 ) -> dict:
     """Create a new API key and revoke previous ones."""
     project, _ = project_auth

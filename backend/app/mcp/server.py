@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.mcp.tools import TOOL_DEFINITIONS, execute_tool, openai_tools
+from app.services import billing as billing_service
 from app.services import ingest
 
 router = APIRouter(tags=["agents"])
@@ -49,6 +50,7 @@ async def call_tool(
 ) -> dict[str, Any]:
     """Execute a named spatial tool for an authenticated project."""
     project, api_key = await ingest.authenticate_api_key(db, x_api_key)
+    await billing_service.enforce_plan_limit(db, project)
     try:
         data = await execute_tool(db, project=project, tool_name=tool_name, payload=payload or {})
     except ValueError as exc:

@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth_routes import router as auth_router
+from app.api.billing_routes import router as billing_router
 from app.api.routes import router as api_router
 from app.core.config import get_settings
 from app.core.database import init_db
@@ -34,7 +36,7 @@ def create_app() -> FastAPI:
             "Serve Feature/MVT APIs and expose tools to any AI agent via MCP HTTP/stdio/SSE "
             "or OpenAI-compatible function calling."
         ),
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
     app.add_middleware(
@@ -45,6 +47,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix=settings.api_prefix)
+    app.include_router(auth_router, prefix=settings.api_prefix)
+    app.include_router(billing_router, prefix=settings.api_prefix)
     app.include_router(agent_router, prefix=settings.api_prefix)
     app.include_router(mcp_sse_router, prefix=settings.api_prefix)
     return app

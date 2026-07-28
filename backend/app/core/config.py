@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     default_crs: str = "EPSG:4326"
     max_upload_mb: int = 50
     free_request_limit: int = 10_000
+    pro_request_limit: int = 1_000_000
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     # Spatial stores: geopackage | duckdb | spatialite | postgis
     spatial_backend: str = "geopackage"
@@ -24,6 +25,16 @@ class Settings(BaseSettings):
     # Public base URL used in agent connector snippets
     public_base_url: str = "http://127.0.0.1:8000"
     mcp_server_name: str = "geopipe"
+    # Auth
+    jwt_secret: str = "geopipe-dev-secret-change-me-32b!"
+    jwt_expire_hours: int = 72
+    auth_required: bool = False
+    # Stripe (optional — without keys, local /billing/dev-upgrade works)
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_price_pro: str | None = None
+    stripe_success_url: str = "http://localhost:5173/?billing=success"
+    stripe_cancel_url: str = "http://localhost:5173/?billing=cancel"
 
 
 @lru_cache
